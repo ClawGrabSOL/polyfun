@@ -1,0 +1,1896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PolyFun | Multi-Chain Token Launchpad</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="apple-touch-icon" href="logo.png">
+    <!-- Solana Web3 + Pump.fun SDK -->
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --green: #00ff41;
+            --green-dim: #00cc33;
+            --green-glow: rgba(0, 255, 65, 0.15);
+            --red: #ff0040;
+            --cyan: #00ffff;
+            --yellow: #ffff00;
+            --bg: #0a0a0a;
+            --bg-card: #0f0f0f;
+            --bg-elevated: #141414;
+            --border: #1a1a1a;
+            --border-hover: #2a2a2a;
+            --text: #e0e0e0;
+            --text-dim: #666;
+            --text-muted: #444;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Scanline effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.1) 0px,
+                rgba(0, 0, 0, 0.1) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.3;
+        }
+
+        /* Matrix rain background */
+        .matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ctext x='10' y='20' fill='%2300ff41' font-family='monospace' font-size='10'%3E01001%3C/text%3E%3Ctext x='50' y='40' fill='%2300ff41' font-family='monospace' font-size='10'%3E10110%3C/text%3E%3Ctext x='20' y='60' fill='%2300ff41' font-family='monospace' font-size='10'%3E00101%3C/text%3E%3Ctext x='60' y='80' fill='%2300ff41' font-family='monospace' font-size='10'%3E11010%3C/text%3E%3C/svg%3E");
+        }
+
+        /* Header */
+        header {
+            padding: 0.75rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text);
+        }
+
+        .logo-img {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+        }
+
+        nav {
+            display: flex;
+            gap: 0.25rem;
+            align-items: center;
+        }
+
+        .nav-link {
+            padding: 0.5rem 1rem;
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            color: var(--green);
+            background: var(--green-glow);
+        }
+
+        .nav-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--border);
+            margin: 0 0.5rem;
+        }
+
+        .connect-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--green);
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.8rem;
+            cursor: pointer;
+            background: transparent;
+            color: var(--green);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .connect-btn:hover {
+            background: var(--green-glow);
+            box-shadow: 0 0 20px var(--green-glow);
+        }
+
+        .connect-btn.connected {
+            border-color: var(--green);
+            background: var(--green-glow);
+        }
+
+        .wallet-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* Main */
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Pages */
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        /* Terminal window style */
+        .terminal {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .terminal-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: var(--bg-elevated);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .terminal-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .terminal-dot.red { background: #ff5f56; }
+        .terminal-dot.yellow { background: #ffbd2e; }
+        .terminal-dot.green { background: #27ca40; }
+
+        .terminal-title {
+            flex: 1;
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .terminal-body {
+            padding: 1.5rem;
+        }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            padding: 4rem 0;
+        }
+
+        .hero-pre {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-bottom: 1rem;
+        }
+
+        .hero h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            letter-spacing: -0.02em;
+        }
+
+        .hero h1 .highlight {
+            color: var(--green);
+            text-shadow: 0 0 30px var(--green-glow);
+        }
+
+        .hero-desc {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            max-width: 500px;
+            margin: 0 auto 2rem;
+        }
+
+        .hero-cmd {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+        }
+
+        .hero-cmd .prompt {
+            color: var(--green);
+        }
+
+        .hero-cmd .cmd {
+            color: var(--text);
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 14px;
+            background: var(--green);
+            margin-left: 2px;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        /* Stats grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin: 3rem 0;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--green);
+        }
+
+        .stat-value .unit {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+        }
+
+        /* Section headers */
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-title {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .section-line {
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        /* Token grid / Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            border: 1px dashed var(--border);
+            border-radius: 6px;
+            margin: 2rem 0;
+        }
+
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        .empty-title {
+            font-size: 1rem;
+            color: var(--text-dim);
+            margin-bottom: 0.5rem;
+        }
+
+        .empty-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+        }
+
+        .btn {
+            padding: 0.6rem 1.25rem;
+            border: 1px solid var(--green);
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.8rem;
+            cursor: pointer;
+            background: transparent;
+            color: var(--green);
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--green-glow);
+        }
+
+        .btn.primary {
+            background: var(--green);
+            color: #000;
+            border: none;
+        }
+
+        .btn.primary:hover {
+            background: var(--green-dim);
+        }
+
+        /* Chain filters */
+        .chain-filters {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+        }
+
+        .chain-filter {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.4rem 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            background: transparent;
+            color: var(--text-dim);
+            transition: all 0.2s;
+        }
+
+        .chain-filter:hover {
+            border-color: var(--border-hover);
+            color: var(--text);
+        }
+
+        .chain-filter.active {
+            border-color: var(--green);
+            color: var(--green);
+            background: var(--green-glow);
+        }
+
+        .chain-filter img {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+        }
+
+        /* Create form */
+        .create-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .form-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1.5rem;
+        }
+
+        .form-section-title {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-label .required {
+            color: var(--red);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.6rem 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--bg);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--green);
+            box-shadow: 0 0 0 3px var(--green-glow);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .form-hint {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        textarea.form-input {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .image-upload {
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--bg);
+        }
+
+        .image-upload:hover {
+            border-color: var(--green);
+            background: rgba(0, 255, 65, 0.03);
+        }
+
+        .image-upload.has-image {
+            padding: 0;
+            border-style: solid;
+            border-color: var(--green);
+        }
+
+        .image-upload img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            border-radius: 6px;
+        }
+
+        .upload-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 1rem;
+            border: 2px solid var(--border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .upload-text {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-bottom: 0.25rem;
+        }
+
+        .upload-hint {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .upload-text span {
+            color: var(--green);
+            text-decoration: underline;
+        }
+
+        .chain-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.5rem;
+        }
+
+        .chain-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.6rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: transparent;
+        }
+
+        .chain-option:hover {
+            border-color: var(--border-hover);
+        }
+
+        .chain-option.selected {
+            border-color: var(--green);
+            background: var(--green-glow);
+        }
+
+        .chain-option img {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+        }
+
+        .chain-option span {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+        }
+
+        .chain-option.selected span {
+            color: var(--green);
+        }
+
+        .links-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        .deploy-btn {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: var(--green);
+            color: #000;
+            transition: all 0.2s;
+            margin-top: 0.5rem;
+        }
+
+        .deploy-btn:hover {
+            background: var(--green-dim);
+            box-shadow: 0 0 30px var(--green-glow);
+        }
+
+        .deploy-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Preview card */
+        .preview-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1rem;
+        }
+
+        .preview-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .preview-img {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 0.7rem;
+        }
+
+        .preview-info h4 {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .preview-ticker {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .preview-desc {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-bottom: 0.75rem;
+        }
+
+        .preview-chain {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.25rem 0.5rem;
+            background: var(--bg);
+            border-radius: 3px;
+            font-size: 0.65rem;
+            color: var(--text-dim);
+        }
+
+        .preview-chain img {
+            width: 12px;
+            height: 12px;
+        }
+
+        /* About page */
+        .about-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+        }
+
+        .about-content h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: var(--text);
+        }
+
+        .about-content p {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+            line-height: 1.8;
+        }
+
+        .about-content h3 {
+            font-size: 0.9rem;
+            margin: 2rem 0 1rem;
+            color: var(--green);
+        }
+
+        .feature-list {
+            list-style: none;
+        }
+
+        .feature-list li {
+            padding: 0.5rem 0;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .feature-list li::before {
+            content: '>';
+            color: var(--green);
+            margin-right: 0.75rem;
+        }
+
+        .info-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .info-card-title {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.75rem;
+        }
+
+        .info-card-content {
+            font-size: 0.85rem;
+            color: var(--text);
+        }
+
+        .code-block {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1rem;
+            font-size: 0.75rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        .code-block .comment {
+            color: var(--text-muted);
+        }
+
+        .code-block .keyword {
+            color: var(--cyan);
+        }
+
+        .code-block .string {
+            color: var(--green);
+        }
+
+        .code-block .number {
+            color: var(--yellow);
+        }
+
+        /* Docs page */
+        .docs-grid {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 2rem;
+        }
+
+        .docs-nav {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            position: sticky;
+            top: 80px;
+            height: fit-content;
+        }
+
+        .docs-nav-title {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.75rem;
+        }
+
+        .docs-nav-link {
+            display: block;
+            padding: 0.4rem 0.75rem;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-decoration: none;
+            border-radius: 3px;
+            margin-bottom: 0.25rem;
+            cursor: pointer;
+        }
+
+        .docs-nav-link:hover, .docs-nav-link.active {
+            color: var(--green);
+            background: var(--green-glow);
+        }
+
+        .docs-content h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .docs-content h3 {
+            font-size: 0.9rem;
+            margin: 1.5rem 0 0.75rem;
+            color: var(--green);
+        }
+
+        .docs-content p {
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            margin-bottom: 1rem;
+            line-height: 1.8;
+        }
+
+        /* Wallet Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1.5rem;
+            width: 100%;
+            max-width: 360px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.25rem;
+        }
+
+        .modal-title {
+            font-size: 0.9rem;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.25rem;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: var(--text);
+        }
+
+        .wallet-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .wallet-option {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: transparent;
+            width: 100%;
+            text-align: left;
+            font-family: inherit;
+            color: var(--text);
+        }
+
+        .wallet-option:hover {
+            border-color: var(--green);
+            background: var(--green-glow);
+        }
+
+        .wallet-option img {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+        }
+
+        .wallet-option-info {
+            flex: 1;
+        }
+
+        .wallet-option-name {
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .wallet-option-desc {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        /* Success modal */
+        .success-content {
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .success-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 1rem;
+            border: 2px solid var(--green);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--green);
+            font-size: 1.5rem;
+        }
+
+        .success-title {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .success-desc {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-bottom: 1.25rem;
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 2rem;
+            margin-top: 4rem;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .footer-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.75rem;
+        }
+
+        .footer-links a:hover {
+            color: var(--green);
+        }
+
+        .footer-copy {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2rem; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .create-grid { grid-template-columns: 1fr; }
+            .about-grid { grid-template-columns: 1fr; }
+            .docs-grid { grid-template-columns: 1fr; }
+            .docs-nav { display: none; }
+            .form-row, .links-grid { grid-template-columns: 1fr; }
+            .chain-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="matrix-bg"></div>
+
+    <header>
+        <div class="logo" onclick="navigateTo('home')">
+            <img src="logo.png" alt="PolyFun" class="logo-img">
+            <span>PolyFun</span>
+        </div>
+        <nav>
+            <span class="nav-link active" data-page="home" onclick="navigateTo('home')">home</span>
+            <span class="nav-link" data-page="create" onclick="navigateTo('create')">create</span>
+            <span class="nav-link" data-page="about" onclick="navigateTo('about')">about</span>
+            <span class="nav-link" data-page="docs" onclick="navigateTo('docs')">docs</span>
+            <div class="nav-divider"></div>
+            <button class="connect-btn" id="connectBtn" onclick="openWalletModal()">
+                connect_wallet
+            </button>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Home Page -->
+        <div class="page active" id="page-home">
+            <div class="hero">
+                <div class="hero-pre">// solana token launchpad via pump.fun</div>
+                <h1>Launch tokens. <span class="highlight">Pay with any crypto.</span></h1>
+                <p class="hero-desc">Launch tokens on Solana via pump.fun. Pay deployment fees with any crypto — BTC, ETH, SOL, and 20+ more.</p>
+                <div class="hero-cmd">
+                    <span class="prompt">$</span> <span class="cmd">polyfun deploy --pay-with ETH</span><span class="cursor"></span>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">tokens_deployed</div>
+                    <div class="stat-value">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">total_volume</div>
+                    <div class="stat-value">$0<span class="unit">.00</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">active_users</div>
+                    <div class="stat-value">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">payment_options</div>
+                    <div class="stat-value">24+</div>
+                </div>
+            </div>
+
+            <div class="section-header">
+                <span class="section-title">// live tokens</span>
+                <div class="section-line"></div>
+            </div>
+
+            <div class="chain-filters">
+                <button class="chain-filter active">all</button>
+                <button class="chain-filter">trending</button>
+                <button class="chain-filter">new</button>
+                <button class="chain-filter">graduating</button>
+            </div>
+
+            <div class="empty-state">
+                <div class="empty-icon">{ }</div>
+                <div class="empty-title">no tokens yet</div>
+                <div class="empty-desc">Be the first to deploy a token on PolyFun</div>
+                <button class="btn primary" onclick="navigateTo('create')">create_token</button>
+            </div>
+        </div>
+
+        <!-- Create Page -->
+        <div class="page" id="page-create">
+            <div class="section-header">
+                <span class="section-title">// deploy new token</span>
+                <div class="section-line"></div>
+            </div>
+
+            <div class="create-grid">
+                <div>
+                    <div class="form-section">
+                        <div class="form-section-title">token_config</div>
+                        <form id="createForm">
+                            <div class="form-group">
+                                <label class="form-label">token image <span class="required">*</span></label>
+                                <div class="image-upload" id="imageUpload">
+                                    <div class="upload-icon">↑</div>
+                                    <div class="upload-text">Drop image or <span>browse</span></div>
+                                    <div class="upload-hint">PNG, JPG, GIF up to 5MB</div>
+                                    <input type="file" accept="image/*" hidden id="imageInput">
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label">name <span class="required">*</span></label>
+                                    <input type="text" class="form-input" placeholder="Token Name" id="tokenName" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">ticker <span class="required">*</span></label>
+                                    <input type="text" class="form-input" placeholder="$TICKER" id="tokenTicker" required maxlength="10">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">description <span class="required">*</span></label>
+                                <textarea class="form-input" placeholder="Describe your token..." id="tokenDesc" required></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" id="buyAmountLabel">initial buy amount (SOL)</label>
+                                <input type="number" class="form-input" placeholder="0.1" id="buyAmount" step="0.001" min="0">
+                                <div class="form-hint" id="buyAmountHint">Optional: Buy tokens immediately after creation</div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">pay fees with</label>
+                                <div class="chain-grid" id="chainSelect">
+                                    <!-- Populated by JS -->
+                                </div>
+                                <div class="form-hint">All tokens launch on Solana via pump.fun</div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">links</label>
+                                <div class="links-grid">
+                                    <input type="url" class="form-input" placeholder="twitter.com/..." id="twitter">
+                                    <input type="url" class="form-input" placeholder="t.me/..." id="telegram">
+                                    <input type="url" class="form-input" placeholder="website.com" id="website">
+                                    <input type="url" class="form-input" placeholder="discord.gg/..." id="discord">
+                                </div>
+                            </div>
+
+                            <!-- Helius key configured -->
+
+                            <button type="submit" class="deploy-btn" id="deployBtn" disabled>connect wallet to deploy</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="form-section">
+                        <div class="form-section-title">preview</div>
+                        <div class="preview-card">
+                            <div class="preview-header">
+                                <div class="preview-img" id="previewImg">?</div>
+                                <div class="preview-info">
+                                    <h4 id="previewName">Token Name</h4>
+                                    <div class="preview-ticker" id="previewTicker">$TICKER</div>
+                                </div>
+                            </div>
+                            <div class="preview-desc" id="previewDesc">Token description will appear here...</div>
+                            <div class="preview-chain">
+                                <img src="https://cryptologos.cc/logos/solana-sol-logo.png" alt="">
+                                Launches on Solana
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section" style="margin-top: 1rem;">
+                        <div class="form-section-title">deployment_info</div>
+                        <div class="code-block">
+                            <span class="comment">// deployment config</span><br>
+                            <span class="keyword">const</span> config = {<br>
+                            &nbsp;&nbsp;chain: <span class="string">"solana"</span>,<br>
+                            &nbsp;&nbsp;platform: <span class="string">"pump.fun"</span>,<br>
+                            &nbsp;&nbsp;supply: <span class="number">1_000_000_000</span>,<br>
+                            &nbsp;&nbsp;fee: <span class="string">"~0.02 SOL"</span>,<br>
+                            &nbsp;&nbsp;graduateAt: <span class="string">"$69,000"</span>,<br>
+                            &nbsp;&nbsp;lpLock: <span class="string">"burned"</span><br>
+                            };
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- About Page -->
+        <div class="page" id="page-about">
+            <div class="section-header">
+                <span class="section-title">// about</span>
+                <div class="section-line"></div>
+            </div>
+
+            <div class="about-grid">
+                <div class="about-content">
+                    <h2>Launch on Solana. Pay with any crypto.</h2>
+                    <p>PolyFun is a token launchpad built on pump.fun that lets you pay deployment fees with 24+ different cryptocurrencies — BTC, ETH, SOL, and more.</p>
+                    
+                    <p>Every token launched through PolyFun follows pump.fun's fair launch rules: no presale, no team allocation, no insider advantage. The bonding curve determines the price, and when market cap reaches the graduation threshold, liquidity is automatically deployed and burned.</p>
+
+                    <h3>// core features</h3>
+                    <ul class="feature-list">
+                        <li>Deploy tokens on Solana via pump.fun in under 2 minutes</li>
+                        <li>Pay fees with BTC, ETH, SOL, USDC, and 20+ cryptos</li>
+                        <li>Automated bonding curve with transparent pricing</li>
+                        <li>No presale, no team tokens, 100% fair launch</li>
+                        <li>Automatic liquidity deployment on graduation</li>
+                        <li>LP tokens burned permanently</li>
+                        <li>Real-time trading and price discovery</li>
+                        <li>On-chain verification and transparency</li>
+                    </ul>
+
+                    <h3>// accepted payment methods</h3>
+                    <p>Bitcoin, Ethereum, Solana, USDC, USDT, BNB, Avalanche, Polygon, TON, Zcash, Aptos, Sui, Litecoin, Dogecoin, XRP, Cardano, Polkadot, Cosmos, NEAR, Arbitrum, Base, Optimism, and more.</p>
+                </div>
+
+                <div>
+                    <div class="info-card">
+                        <div class="info-card-title">contract_status</div>
+                        <div class="info-card-content" style="color: var(--green);">● audited</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-title">version</div>
+                        <div class="info-card-content">v1.0.0</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-title">license</div>
+                        <div class="info-card-content">MIT</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-title">contact</div>
+                        <div class="info-card-content">team@polyfun.io</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Docs Page -->
+        <div class="page" id="page-docs">
+            <div class="section-header">
+                <span class="section-title">// documentation</span>
+                <div class="section-line"></div>
+            </div>
+
+            <div class="docs-grid">
+                <div class="docs-nav">
+                    <div class="docs-nav-title">contents</div>
+                    <span class="docs-nav-link active">Getting Started</span>
+                    <span class="docs-nav-link">Creating a Token</span>
+                    <span class="docs-nav-link">Bonding Curve</span>
+                    <span class="docs-nav-link">Graduation</span>
+                    <span class="docs-nav-link">Trading</span>
+                    <span class="docs-nav-link">API Reference</span>
+                    <span class="docs-nav-link">Smart Contracts</span>
+                </div>
+
+                <div class="docs-content terminal">
+                    <div class="terminal-header">
+                        <div class="terminal-dot red"></div>
+                        <div class="terminal-dot yellow"></div>
+                        <div class="terminal-dot green"></div>
+                        <div class="terminal-title">docs.md</div>
+                    </div>
+                    <div class="terminal-body">
+                        <h2>Getting Started</h2>
+                        <p>PolyFun lets you launch tokens on Solana via pump.fun while paying fees with any cryptocurrency. This guide covers the basics.</p>
+
+                        <h3>// connect your wallet</h3>
+                        <p>Click "connect_wallet" to connect your Web3 wallet. We support MetaMask, Phantom, Coinbase Wallet, and WalletConnect.</p>
+
+                        <h3>// create a token</h3>
+                        <p>Navigate to "create" and fill in your token details:</p>
+                        <div class="code-block">
+                            <span class="comment">// required fields</span><br>
+                            name: <span class="string">"Your Token Name"</span><br>
+                            ticker: <span class="string">"$TICKER"</span><br>
+                            description: <span class="string">"Token description"</span><br>
+                            image: <span class="string">"&lt;uploaded file&gt;"</span><br>
+                            <span class="comment">// payment (optional, default SOL)</span><br>
+                            payWith: <span class="string">"ETH"</span> | <span class="string">"BTC"</span> | <span class="string">"USDC"</span> | ...
+                        </div>
+
+                        <h3>// how payment works</h3>
+                        <p>All tokens launch on Solana via pump.fun. PolyFun converts your chosen payment currency to SOL automatically to cover deployment fees. No need to hold SOL.</p>
+
+                        <h3>// graduation</h3>
+                        <p>When a token reaches $69,000 market cap, it "graduates" — liquidity is deployed to Raydium and LP tokens are burned permanently.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-links">
+                <a href="https://x.com/polyfunx" target="_blank">@polyfunx</a>
+                <a href="#">Discord</a>
+                <a href="#">GitHub</a>
+                <a href="#">Terms</a>
+            </div>
+            <div class="footer-copy">© 2026 PolyFun. All rights reserved.</div>
+        </div>
+    </footer>
+
+    <!-- Wallet Modal -->
+    <div class="modal" id="walletModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">connect_wallet</span>
+                <button class="modal-close" onclick="closeWalletModal()">×</button>
+            </div>
+            <div class="wallet-list">
+                <button class="wallet-option" onclick="connectWallet('phantom')">
+                    <img src="https://phantom.app/img/phantom-icon-purple.svg" alt="Phantom">
+                    <div class="wallet-option-info">
+                        <div class="wallet-option-name">Phantom</div>
+                        <div class="wallet-option-desc">Recommended for Solana</div>
+                    </div>
+                </button>
+                <button class="wallet-option" onclick="connectWallet('solflare')">
+                    <img src="https://solflare.com/favicon.ico" alt="Solflare">
+                    <div class="wallet-option-info">
+                        <div class="wallet-option-name">Solflare</div>
+                        <div class="wallet-option-desc">Solana wallet</div>
+                    </div>
+                </button>
+            </div>
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.7rem; color: var(--text-muted); text-align: center;">
+                Tokens launch on Solana via pump.fun
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal" id="successModal">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="success-content">
+                <div class="success-icon">✓</div>
+                <h3 class="success-title">Token Deployed!</h3>
+                <p class="success-desc">Your token is now live on pump.fun</p>
+                
+                <div style="text-align: left; margin: 1.5rem 0;">
+                    <div style="margin-bottom: 1rem;">
+                        <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.3rem;">CONTRACT ADDRESS (CA)</div>
+                        <div id="tokenCA" style="padding: 0.6rem; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; word-break: break-all; color: var(--green); cursor: pointer;" onclick="copyCA()"></div>
+                        <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 0.3rem;">Click to copy</div>
+                    </div>
+                    
+                    <div style="margin-bottom: 1rem;">
+                        <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.3rem;">TRANSACTION</div>
+                        <div id="tokenTx" style="padding: 0.6rem; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; font-size: 0.7rem; word-break: break-all;"></div>
+                    </div>
+                    
+                    <div>
+                        <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.3rem;">VIEW ON</div>
+                        <div id="tokenLinks" style="display: flex; gap: 0.5rem;"></div>
+                    </div>
+                </div>
+                
+                <button class="btn primary" onclick="closeSuccessModal()">create another</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Payment options (for fee payment)
+        const paymentOptions = [
+            { id: 'sol', name: 'SOL', logo: 'https://cryptologos.cc/logos/solana-sol-logo.png' },
+            { id: 'usdc', name: 'USDC', logo: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png' },
+            { id: 'eth', name: 'ETH', logo: 'https://cryptologos.cc/logos/ethereum-eth-logo.png' },
+            { id: 'btc', name: 'BTC', logo: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png' },
+            { id: 'usdt', name: 'USDT', logo: 'https://cryptologos.cc/logos/tether-usdt-logo.png' },
+            { id: 'bnb', name: 'BNB', logo: 'https://cryptologos.cc/logos/bnb-bnb-logo.png' },
+            { id: 'avax', name: 'AVAX', logo: 'https://cryptologos.cc/logos/avalanche-avax-logo.png' },
+            { id: 'matic', name: 'MATIC', logo: 'https://cryptologos.cc/logos/polygon-matic-logo.png' },
+            { id: 'arb', name: 'ARB', logo: 'https://cryptologos.cc/logos/arbitrum-arb-logo.png' },
+            { id: 'ton', name: 'TON', logo: 'https://cryptologos.cc/logos/toncoin-ton-logo.png' },
+            { id: 'doge', name: 'DOGE', logo: 'https://cryptologos.cc/logos/dogecoin-doge-logo.png' },
+            { id: 'ltc', name: 'LTC', logo: 'https://cryptologos.cc/logos/litecoin-ltc-logo.png' },
+        ];
+
+        // State
+        let selectedPayment = 'sol';
+        let walletConnected = false;
+        let walletAddress = null;
+        let walletPublicKey = null;
+        let tokenImageFile = null;
+        let tokenImageBase64 = null;
+
+        // Pump.fun program ID (mainnet)
+        const PUMPFUN_PROGRAM_ID = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            renderPaymentOptions();
+            setupEventListeners();
+            checkPhantomConnection();
+        });
+
+        // Check if Phantom is already connected
+        async function checkPhantomConnection() {
+            if (window.solana && window.solana.isPhantom) {
+                try {
+                    // Check if already connected
+                    const resp = await window.solana.connect({ onlyIfTrusted: true });
+                    walletPublicKey = resp.publicKey;
+                    walletAddress = resp.publicKey.toString();
+                    walletConnected = true;
+                    updateWalletUI();
+                    console.log('Phantom auto-connected:', walletAddress);
+                } catch (err) {
+                    // Not connected yet, that's fine
+                    console.log('Phantom not auto-connected');
+                }
+            }
+        }
+
+        function renderPaymentOptions() {
+            const container = document.getElementById('chainSelect');
+            container.innerHTML = paymentOptions.map((opt, i) => `
+                <div class="chain-option ${i === 0 ? 'selected' : ''}" data-chain="${opt.id}" data-name="${opt.name}">
+                    <img src="${opt.logo}" alt="${opt.name}">
+                    <span>${opt.name}</span>
+                </div>
+            `).join('');
+
+            // Attach listeners
+            document.querySelectorAll('.chain-option').forEach(opt => {
+                opt.addEventListener('click', (e) => {
+                    document.querySelectorAll('.chain-option').forEach(o => o.classList.remove('selected'));
+                    e.currentTarget.classList.add('selected');
+                    selectedPayment = e.currentTarget.dataset.chain;
+                    
+                    // Update buy amount label
+                    const paymentName = e.currentTarget.dataset.name;
+                    document.getElementById('buyAmountLabel').textContent = `initial buy amount (${paymentName})`;
+                    document.getElementById('buyAmount').placeholder = paymentName === 'SOL' ? '0.1' : '0.01';
+                });
+            });
+        }
+
+        function setupEventListeners() {
+            // Filters
+            document.querySelectorAll('.chain-filter').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.chain-filter').forEach(b => b.classList.remove('active'));
+                    e.currentTarget.classList.add('active');
+                });
+            });
+
+            // Image upload
+            const imageUpload = document.getElementById('imageUpload');
+            const imageInput = document.getElementById('imageInput');
+
+            imageUpload.addEventListener('click', () => imageInput.click());
+            imageUpload.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                imageUpload.style.borderColor = 'var(--green)';
+            });
+            imageUpload.addEventListener('dragleave', () => {
+                imageUpload.style.borderColor = 'var(--border)';
+            });
+            imageUpload.addEventListener('drop', (e) => {
+                e.preventDefault();
+                handleImageUpload(e.dataTransfer.files[0]);
+            });
+            imageInput.addEventListener('change', (e) => {
+                handleImageUpload(e.target.files[0]);
+            });
+
+            // Form inputs for live preview
+            document.getElementById('tokenName').addEventListener('input', updatePreview);
+            document.getElementById('tokenTicker').addEventListener('input', updatePreview);
+            document.getElementById('tokenDesc').addEventListener('input', updatePreview);
+
+            // Form submit
+            document.getElementById('createForm').addEventListener('submit', handleDeploy);
+
+            // Listen for Phantom disconnect
+            if (window.solana) {
+                window.solana.on('disconnect', () => {
+                    walletConnected = false;
+                    walletAddress = null;
+                    walletPublicKey = null;
+                    updateWalletUI();
+                    console.log('Phantom disconnected');
+                });
+
+                window.solana.on('accountChanged', (publicKey) => {
+                    if (publicKey) {
+                        walletPublicKey = publicKey;
+                        walletAddress = publicKey.toString();
+                        updateWalletUI();
+                        console.log('Phantom account changed:', walletAddress);
+                    } else {
+                        walletConnected = false;
+                        walletAddress = null;
+                        walletPublicKey = null;
+                        updateWalletUI();
+                    }
+                });
+            }
+        }
+
+        function handleImageUpload(file) {
+            if (!file || !file.type.startsWith('image/')) return;
+            
+            // Check file size (5MB max)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Image must be under 5MB');
+                return;
+            }
+
+            tokenImageFile = file;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                tokenImageBase64 = e.target.result;
+                const imageUpload = document.getElementById('imageUpload');
+                imageUpload.classList.add('has-image');
+                imageUpload.innerHTML = `<img src="${e.target.result}" alt="Token">`;
+                document.getElementById('previewImg').innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function updatePreview() {
+            const name = document.getElementById('tokenName').value || 'Token Name';
+            const ticker = document.getElementById('tokenTicker').value || 'TICKER';
+            const desc = document.getElementById('tokenDesc').value || 'Token description will appear here...';
+
+            document.getElementById('previewName').textContent = name;
+            document.getElementById('previewTicker').textContent = '$' + ticker.replace('$', '').toUpperCase();
+            document.getElementById('previewDesc').textContent = desc;
+        }
+
+        function navigateTo(page) {
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.toggle('active', link.dataset.page === page);
+            });
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById('page-' + page).classList.add('active');
+            window.scrollTo(0, 0);
+        }
+
+        function openWalletModal() {
+            if (walletConnected) {
+                // Disconnect
+                if (window.solana) {
+                    window.solana.disconnect();
+                }
+                walletConnected = false;
+                walletAddress = null;
+                walletPublicKey = null;
+                updateWalletUI();
+                return;
+            }
+            document.getElementById('walletModal').classList.add('active');
+        }
+
+        function closeWalletModal() {
+            document.getElementById('walletModal').classList.remove('active');
+        }
+
+        async function connectWallet(type) {
+            closeWalletModal();
+
+            try {
+                if (type === 'phantom') {
+                    if (!window.solana || !window.solana.isPhantom) {
+                        window.open('https://phantom.app/', '_blank');
+                        alert('Please install Phantom wallet extension');
+                        return;
+                    }
+                    
+                    const resp = await window.solana.connect();
+                    walletPublicKey = resp.publicKey;
+                    walletAddress = resp.publicKey.toString();
+                    walletConnected = true;
+                    console.log('Connected to Phantom:', walletAddress);
+                    
+                } else if (type === 'solflare') {
+                    if (!window.solflare) {
+                        window.open('https://solflare.com/', '_blank');
+                        alert('Please install Solflare wallet extension');
+                        return;
+                    }
+                    
+                    await window.solflare.connect();
+                    walletPublicKey = window.solflare.publicKey;
+                    walletAddress = window.solflare.publicKey.toString();
+                    walletConnected = true;
+                    
+                } else {
+                    alert('Please use Phantom wallet for Solana transactions');
+                    return;
+                }
+            } catch (err) {
+                console.error('Wallet connection error:', err);
+                alert('Failed to connect wallet: ' + err.message);
+                return;
+            }
+
+            updateWalletUI();
+        }
+
+        function updateWalletUI() {
+            const btn = document.getElementById('connectBtn');
+            const deployBtn = document.getElementById('deployBtn');
+
+            if (walletConnected && walletAddress) {
+                const shortAddr = walletAddress.slice(0, 4) + '...' + walletAddress.slice(-4);
+                btn.innerHTML = `<span class="wallet-dot"></span>${shortAddr}`;
+                btn.classList.add('connected');
+                deployBtn.disabled = false;
+                deployBtn.textContent = 'deploy_token';
+            } else {
+                btn.innerHTML = 'connect_wallet';
+                btn.classList.remove('connected');
+                deployBtn.disabled = true;
+                deployBtn.textContent = 'connect wallet to deploy';
+            }
+        }
+
+        async function handleDeploy(e) {
+            e.preventDefault();
+            
+            if (!walletConnected) {
+                openWalletModal();
+                return;
+            }
+
+            const name = document.getElementById('tokenName').value.trim();
+            const ticker = document.getElementById('tokenTicker').value.trim().replace('$', '').toUpperCase();
+            const description = document.getElementById('tokenDesc').value.trim();
+            const twitter = document.getElementById('twitter').value.trim();
+            const telegram = document.getElementById('telegram').value.trim();
+            const website = document.getElementById('website').value.trim();
+            const buyAmount = parseFloat(document.getElementById('buyAmount').value) || 0;
+
+            // Validation
+            if (!name || !ticker || !description) {
+                alert('Please fill in name, ticker, and description');
+                return;
+            }
+
+            if (!tokenImageFile) {
+                alert('Please upload a token image');
+                return;
+            }
+
+            if (ticker.length > 10) {
+                alert('Ticker must be 10 characters or less');
+                return;
+            }
+
+            const deployBtn = document.getElementById('deployBtn');
+            deployBtn.disabled = true;
+
+            try {
+                // Create token on pump.fun
+                await createPumpFunToken({
+                    name,
+                    symbol: ticker,
+                    description,
+                    image: tokenImageFile,
+                    twitter,
+                    telegram,
+                    website,
+                    buyAmount
+                });
+
+                document.getElementById('successModal').classList.add('active');
+                
+            } catch (err) {
+                console.error('Deploy error:', err);
+                alert('Failed to deploy: ' + err.message);
+            } finally {
+                deployBtn.disabled = false;
+                deployBtn.textContent = 'deploy_token';
+            }
+        }
+
+        async function createPumpFunToken({ name, symbol, description, image, twitter, telegram, website, buyAmount }) {
+            console.log('Creating pump.fun token:', { name, symbol, description, buyAmount });
+
+            // Step 1: Upload to pump.fun IPFS via our local proxy
+            updateDeployStatus('Uploading to IPFS...');
+            
+            const formData = new FormData();
+            formData.append('file', image);
+            formData.append('name', name);
+            formData.append('symbol', symbol);
+            formData.append('description', description);
+            if (twitter) formData.append('twitter', twitter);
+            if (telegram) formData.append('telegram', telegram);
+            if (website) formData.append('website', website);
+            formData.append('showName', 'true');
+
+            let metadataResult;
+            try {
+                const ipfsResponse = await fetch('/api/ipfs', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const responseText = await ipfsResponse.text();
+                console.log('IPFS response:', ipfsResponse.status, responseText);
+
+                if (!ipfsResponse.ok) {
+                    throw new Error('IPFS upload failed (' + ipfsResponse.status + '): ' + responseText);
+                }
+
+                metadataResult = JSON.parse(responseText);
+                console.log('Metadata uploaded:', metadataResult);
+                
+                if (!metadataResult.metadataUri) {
+                    throw new Error('No metadataUri in response: ' + responseText);
+                }
+            } catch (err) {
+                console.error('IPFS upload error:', err);
+                throw new Error('Step 1 failed (IPFS): ' + err.message);
+            }
+
+            // Step 2: Generate mint keypair
+            updateDeployStatus('Generating token...');
+            const mintKeypair = solanaWeb3.Keypair.generate();
+            console.log('Generated mint address:', mintKeypair.publicKey.toString());
+
+            // Step 3: Get create transaction via our proxy
+            updateDeployStatus('Building transaction...');
+            
+            const createPayload = {
+                publicKey: walletAddress,
+                action: 'create',
+                tokenMetadata: {
+                    name: name,
+                    symbol: symbol,
+                    uri: metadataResult.metadataUri
+                },
+                mint: mintKeypair.publicKey.toString(),
+                denominatedInSol: 'true',
+                amount: buyAmount || 0,
+                slippage: 15,
+                priorityFee: 0.0005,
+                pool: 'pump'
+            };
+
+            let txData;
+            try {
+                const tradeResponse = await fetch('/api/trade', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(createPayload)
+                });
+
+                console.log('Trade response status:', tradeResponse.status);
+
+                if (!tradeResponse.ok) {
+                    const errText = await tradeResponse.text();
+                    throw new Error('Trade API failed (' + tradeResponse.status + '): ' + errText);
+                }
+
+                txData = await tradeResponse.arrayBuffer();
+                console.log('Transaction data received, length:', txData.byteLength);
+                
+                if (txData.byteLength < 100) {
+                    const textDecoder = new TextDecoder();
+                    const errMsg = textDecoder.decode(txData);
+                    throw new Error('Invalid transaction data: ' + errMsg);
+                }
+            } catch (err) {
+                console.error('Trade API error:', err);
+                throw new Error('Step 3 failed (Transaction): ' + err.message);
+            }
+
+            // Step 4: Deserialize and sign transaction
+            updateDeployStatus('Sign in wallet...');
+            
+            const tx = solanaWeb3.VersionedTransaction.deserialize(new Uint8Array(txData));
+            tx.sign([mintKeypair]);
+
+            const signedTx = await window.solana.signTransaction(tx);
+            
+            // Step 5: Send transaction
+            updateDeployStatus('Broadcasting...');
+            
+            // Use Helius RPC
+            const HELIUS_KEY = 'e47455a6-207a-42d6-9c0c-1e4a2ad9f573';
+            const connection = new solanaWeb3.Connection(`https://mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`, {
+                commitment: 'confirmed',
+                confirmTransactionInitialTimeout: 60000
+            });
+            const signature = await connection.sendRawTransaction(signedTx.serialize(), {
+                skipPreflight: true,
+                maxRetries: 3
+            });
+
+            console.log('Transaction sent:', signature);
+            
+            // Step 6: Wait for confirmation
+            updateDeployStatus('Confirming...');
+            
+            const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+            
+            if (confirmation.value.err) {
+                throw new Error('Transaction failed: ' + JSON.stringify(confirmation.value.err));
+            }
+
+            const tokenUrl = `https://pump.fun/${mintKeypair.publicKey.toString()}`;
+            
+            console.log('Token created successfully!');
+            console.log('Mint address:', mintKeypair.publicKey.toString());
+            console.log('Transaction:', signature);
+            console.log('View on pump.fun:', tokenUrl);
+
+            // Update success modal with CA and links
+            const mintAddress = mintKeypair.publicKey.toString();
+            document.getElementById('tokenCA').textContent = mintAddress;
+            document.getElementById('tokenCA').dataset.ca = mintAddress;
+            document.getElementById('tokenTx').innerHTML = `<a href="https://solscan.io/tx/${signature}" target="_blank" style="color: var(--text-dim);">${signature.slice(0, 20)}...${signature.slice(-20)}</a>`;
+            document.getElementById('tokenLinks').innerHTML = `
+                <a href="${tokenUrl}" target="_blank" class="btn" style="font-size: 0.75rem; padding: 0.4rem 0.75rem;">pump.fun</a>
+                <a href="https://solscan.io/token/${mintAddress}" target="_blank" class="btn" style="font-size: 0.75rem; padding: 0.4rem 0.75rem;">Solscan</a>
+                <a href="https://dexscreener.com/solana/${mintAddress}" target="_blank" class="btn" style="font-size: 0.75rem; padding: 0.4rem 0.75rem;">DexScreener</a>
+            `;
+
+            return {
+                mint: mintKeypair.publicKey.toString(),
+                signature,
+                url: tokenUrl
+            };
+        }
+
+        function updateDeployStatus(status) {
+            const deployBtn = document.getElementById('deployBtn');
+            deployBtn.textContent = status;
+        }
+
+        function copyCA() {
+            const ca = document.getElementById('tokenCA').dataset.ca;
+            navigator.clipboard.writeText(ca).then(() => {
+                const el = document.getElementById('tokenCA');
+                const original = el.textContent;
+                el.textContent = 'Copied!';
+                el.style.color = '#fff';
+                setTimeout(() => {
+                    el.textContent = original;
+                    el.style.color = 'var(--green)';
+                }, 1500);
+            });
+        }
+
+        function closeSuccessModal() {
+            document.getElementById('successModal').classList.remove('active');
+            document.getElementById('createForm').reset();
+            tokenImageFile = null;
+            tokenImageBase64 = null;
+            const imageUpload = document.getElementById('imageUpload');
+            imageUpload.classList.remove('has-image');
+            imageUpload.innerHTML = `
+                <div class="upload-icon">↑</div>
+                <div class="upload-text">Drop image or <span>browse</span></div>
+                <div class="upload-hint">PNG, JPG, GIF up to 5MB</div>
+            `;
+            document.getElementById('previewImg').innerHTML = '?';
+            updatePreview();
+            navigateTo('home');
+        }
+    </script>
+</body>
+</html>
